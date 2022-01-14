@@ -1,0 +1,122 @@
+version: "3"
+services:
+  mysql-staff:
+    build: mysql_staff/
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+    ports:
+      - 3307:3306
+    networks:
+      - mynetwork
+    volumes:
+      - staff-data:/var/lib/mysql
+
+  staff-server:
+    depends_on:
+      - mysql-staff
+    build: staff/
+    restart: always
+    environment:
+      USERNAME: root
+      PASSWORD: password
+      DB_URL: mysql-staff:3306/devtech
+    ports:
+      - 9090:9090
+    networks:
+      - mynetwork
+
+  mysql-user:
+    build: mysql_user/
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+    ports:
+      - 3308:3306
+    networks:
+      - mynetwork
+    volumes:
+      - user-data:/var/lib/mysql
+
+  user-server:
+    depends_on:
+      - mysql-user
+    build: user/
+    restart: always
+    environment:
+      USERNAME: root
+      PASSWORD: password
+      DB_URL: mysql-user:3306/devtech
+    ports:
+      - 9093:9093
+    networks:
+      - mynetwork
+
+  mysql-task:
+    build: mysql_task/
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+    ports:
+      - 3309:3306
+    networks:
+      - mynetwork
+    volumes:
+      - task-data:/var/lib/mysql
+
+  task-server:
+    depends_on:
+      - mysql-task
+    build: task/
+    restart: always
+    environment:
+      USERNAME: root
+      PASSWORD: password
+      DB_URL: mysql-task:3306/devtech
+    ports:
+      - 9091:9091
+    networks:
+      - mynetwork
+
+  zookeeper:
+    image: wurstmeister/zookeeper
+    restart: always
+    ports:
+      - 2181:2181
+    networks:
+      - mynetwork
+
+  kafka:
+    image: wurstmeister/kafka
+    restart: always
+    depends_on:
+      - zookeeper
+    ports:
+      - 9092:9092
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://:9092
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - mynetwork
+
+  kafka-manager:
+    image: sheepkiller/kafka-manager:latest
+    ports:
+      - "9000:9000"
+    links:
+      - zookeeper
+      - kafka
+    environment:
+      ZK_HOSTS: zookeeper:2181
+      APPLICATION_SECRET: letmein
+      KM_ARGS: -Djava.net.preferIPv4Stack=true
+    networks:
+      - mynetwork
+
+networks:
+  mynetwork: {}
+
+volumes:
+  employee-data: {}
+  user-data: {}
+  task-data: {}
